@@ -43,128 +43,126 @@ const Aviator = () => {
     }
   };
 
-  setTimeout(() => {
-    setGameState(GAME_STATE.RUNNING);
-  }, 10000)
 
-  // useEffect(() => {
-  //   const webSocketCall = () => {
-  //     const newWs = new WebSocket(Socket_Url);
-  //     newWs.onopen = () => {
-  //       console.log("WebSocket connected");
-  //     };
+  useEffect(() => {
+    const webSocketCall = () => {
+      const newWs = new WebSocket(Socket_Url);
+      newWs.onopen = () => {
+        console.log("WebSocket connected");
+      };
 
-  //     newWs.onclose = () => {
-  //       console.log("WebSocket disconnected");
-  //       webSocketCall();
-  //     };
-  //     newWs.onerror = (error) => {
-  //       console.error("WebSocket error:", error);
-  //       webSocketCall();
-  //     };
-  //     setWs(newWs);
-  //   };
-  //   webSocketCall();
-  // }, []);
+      newWs.onclose = () => {
+        console.log("WebSocket disconnected");
+        webSocketCall();
+      };
+      newWs.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        webSocketCall();
+      };
+      setWs(newWs);
+    };
+    webSocketCall();
+  }, []);
 
-  // useEffect(() => {
-  //   if (ws) {
-  //     ws.onmessage = (event) => {
-  //       try {
-  //         const data = JSON.parse(event.data);
-  //         // * Aviator Recived Socket Messages
-  //         if (data.event === "aviator_sync") {
-  //           // console.log("Aviator Sync:", data);
-  //           if (data.state === GAME_STATE.WAITING) {
-  //             console.log("Game is in WAITING state ASYNC----------------------------------");
-  //             if (nextBets) {
-  //               setCurrentBets(nextBets);
-  //               setNextBets(undefined);
-  //             }
-  //           };
-  //           setGameState(data.state);
-  //           setWaitTimer(data.timer);
-  //         }
-  //         if (data.event === "aviator_orderId") {
-  //           setAviator_orderId(data.aviator_orderId);
-  //         }
-  //         if (data.event === "aviator_state") {
-  //           setGameState(data.state);
-  //           if (data.state === GAME_STATE.WAITING) {
-  //             console.log("Game is in WAITING state ");
-  //             const latestNextBets = nextBetsRef.current;
-  //             if (latestNextBets) {
-  //               console.log("Moving nextBets to currentBets");
-  //               setCurrentBets(latestNextBets);
-  //               setNextBets(undefined);
-  //               nextBetsRef.current = null;
-  //             }
-  //           }
+  useEffect(() => {
+    if (ws) {
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          // * Aviator Recived Socket Messages
+          if (data.event === "aviator_sync") {
+            // console.log("Aviator Sync:", data);
+            if (data.state === GAME_STATE.WAITING) {
+              console.log("Game is in WAITING state ASYNC----------------------------------");
+              if (nextBets) {
+                setCurrentBets(nextBets);
+                setNextBets(undefined);
+              }
+              setGameState(data.state);
+            };
+            setGameState(data.state);
+            setWaitTimer(data.timer);
+          }
+          if (data.event === "aviator_orderId") {
+            setAviator_orderId(data.aviator_orderId);
+          }
+          if (data.event === "aviator_state") {
+            setGameState(data.state);
+            if (data.state === GAME_STATE.WAITING) {
+              console.log("Game is in WAITING state ");
+              const latestNextBets = nextBetsRef.current;
+              if (latestNextBets) {
+                console.log("Moving nextBets to currentBets");
+                setCurrentBets(latestNextBets);
+                setNextBets(undefined);
+                nextBetsRef.current = null;
+              }
+            }
 
-  //           if (data.state === GAME_STATE.CRASHED) {
-  //             setCurrentBets(null);
-  //           }
-  //         }
-  //         if (data.event === "aviator_tick") {
-  //           setMultiplier(data.multiplier);
-  //         }
-  //         if (data.event === "aviator_timer") {
-  //           setWaitTimer(data.timer);
-  //         }
-  //         // * BiD Cancel
-  //         if (data.event === "bid_cancel") {
-  //           setCurrentBets(null);
-  //           setNextBets(null);
-  //         }
-  //         // For Toast message
-  //         if (data.event === "toast") {
-  //           if (data.userId === sessionStorage.getItem("userId")) {
-  //             toast.success(data.msg);
-  //           }
-  //         }
+            if (data.state === GAME_STATE.CRASHED) {
+              setCurrentBets(null);
+            }
+          }
+          if (data.event === "aviator_tick") {
+            setMultiplier(data.multiplier);
+          }
+          if (data.event === "aviator_timer") {
+            setWaitTimer(data.timer);
+          }
+          // * BiD Cancel
+          if (data.event === "bid_cancel") {
+            setCurrentBets(null);
+            setNextBets(null);
+          }
+          // For Toast message
+          if (data.event === "toast") {
+            if (data.userId === sessionStorage.getItem("userId")) {
+              toast.success(data.msg);
+            }
+          }
 
 
-  //         if (data.event === "winner") {
-  //           const filter = data.data.filter(
-  //             (list) => list.id == sessionStorage.getItem("userId")
-  //           );
-  //           if (filter.length > 0) {
-  //             playSound(winSound);
-  //             setWinningAmount(filter[0].winningAmount);
-  //             setTimeout(() => {
-  //               setWinningAmount(0);
-  //               refetch();
-  //               refetchWithdrawBalance();
-  //               setMyrefresh(!myrefresh);
-  //             }, 2000);
-  //           }
-  //         }
-  //         if (data.event === "loss") {
-  //           const filter = data.data.filter(
-  //             (list) => list.id == sessionStorage.getItem("userId")
-  //           );
-  //           if (filter.length > 0) {
-  //             playSound(loseSound);
-  //             setLoss(true);
-  //             refetchWithdrawBalance();
-  //             setTimeout(() => {
-  //               setLoss(false);
-  //               setMyrefresh(!myrefresh);
-  //             }, 2000);
-  //           }
-  //         }
-  //         if (data.event === "update") {
-  //           setUpdateTimeDureation(data);
-  //         }
-  //         if (data.event === "game_history") {
-  //           setGameHistory(data.data);
-  //         }
-  //       } catch (error) {
-  //         console.error("❌ Error parsing message:", error);
-  //       }
-  //     };
-  //   }
-  // }, [ws]);
+          if (data.event === "winner") {
+            const filter = data.data.filter(
+              (list) => list.id == sessionStorage.getItem("userId")
+            );
+            if (filter.length > 0) {
+              playSound(winSound);
+              setWinningAmount(filter[0].winningAmount);
+              setTimeout(() => {
+                setWinningAmount(0);
+                refetch();
+                refetchWithdrawBalance();
+                setMyrefresh(!myrefresh);
+              }, 2000);
+            }
+          }
+          if (data.event === "loss") {
+            const filter = data.data.filter(
+              (list) => list.id == sessionStorage.getItem("userId")
+            );
+            if (filter.length > 0) {
+              playSound(loseSound);
+              setLoss(true);
+              refetchWithdrawBalance();
+              setTimeout(() => {
+                setLoss(false);
+                setMyrefresh(!myrefresh);
+              }, 2000);
+            }
+          }
+          if (data.event === "update") {
+            setUpdateTimeDureation(data);
+          }
+          if (data.event === "game_history") {
+            setGameHistory(data.data);
+          }
+        } catch (error) {
+          console.error("❌ Error parsing message:", error);
+        }
+      };
+    }
+  }, [ws]);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -175,6 +173,7 @@ const Aviator = () => {
 
     if (startedRef.current) return;
     startedRef.current = true;
+
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -191,6 +190,7 @@ const Aviator = () => {
 
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
+    const MAX_HOVER_TOP = height * 0.18; // <-- ADD THIS
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -261,6 +261,7 @@ const Aviator = () => {
     function getPosition(t) {
 
       const p = Math.min(t / takeoffDuration, 1);
+      const takeoffHeight = width < 600 ? height * 0.55 : height * 0.75;
       const x =
         START_X + START_X_OFFSET +
         p * (END_X - START_X - START_X_OFFSET);
@@ -268,10 +269,8 @@ const Aviator = () => {
       const y =
         height -
         START_Y_OFFSET -
-        Math.pow(p, 1.8) * (height * 0.75);
-
-      console.log("position - x ", x);
-      console.log("position - y ", y);
+        // Math.pow(p, 1.8) * (height * 0.75);
+        Math.pow(p, 1.8) * takeoffHeight;
 
       // Stop exactly at takeoff end
       if (t <= takeoffDuration) {
@@ -285,7 +284,7 @@ const Aviator = () => {
 
       // Last takeoff position
       const endX = START_X + START_X_OFFSET + (END_X - START_X);
-      const endY = height - START_Y_OFFSET - height * 0.75;
+      const endY = height - START_Y_OFFSET - takeoffHeight;
 
       // Ease-in (first 1s)
       const ease = Math.min(hover / 1000, 1);
@@ -293,7 +292,9 @@ const Aviator = () => {
 
       // 🔹 Responsive hover amplitudes (important for mobile)
       const hoverAmplitudeX = width * 0.08;   // 5% of width
-      const hoverAmplitudeY = height * 0.035; // 3.5% of height
+      // const hoverAmplitudeY = height * 0.035; // 3.5% of height
+      const hoverAmplitudeY = width < 600 ? height * 0.055 : height * 0.03;
+
 
       // Frequencies + phase (natural drift)
       const offsetX =
@@ -305,8 +306,10 @@ const Aviator = () => {
         easeOut;
 
       // 🔹 Safe vertical limits (extra padding on top for mobile)
-      const topLimit = height * 0.14;
+      const topLimit = width < 600 ? height * 0.12 : height * 0.14;
       const bottomLimit = height * 0.9;
+      // reduce top limit on mobile to prevent escape
+      // const mobileTopLimit = width < 400 ? height * 0.55 : topLimit;
 
       // Soft clamp (prevents snapping)
       const softClamp = (value, min, max) => {
@@ -321,6 +324,37 @@ const Aviator = () => {
       };
 
     }
+
+    function drawAviatorCurve(ctx, x, y, progress) {
+      const startX = 0;
+      const startY = height;
+
+      // Horizontal pull (smooth forward growth)
+      const cpX = x * 0.45;
+
+      // 🔥 KEY FIX: control point stays BELOW endpoint
+      const lift = progress * progress; // smooth acceleration
+      const cpY = startY - lift * (startY - y) * 0.05;
+
+      /* ===== STROKE ===== */
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.quadraticCurveTo(cpX, cpY, x, y);
+      ctx.strokeStyle = "#ff2e2e";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      /* ===== FILL ===== */
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.quadraticCurveTo(cpX, cpY, x, y);
+      ctx.lineTo(x, startY);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(255,0,0,0.35)";
+      ctx.fill();
+    }
+
+
 
     /* ================= MAIN LOOP ================= */
     function animate(timestamp) {
@@ -502,22 +536,15 @@ const Aviator = () => {
       const p2 = getPosition(elapsed + 16);
       const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
 
-      /* 🔴 RED FILL (TAIL ATTACHED) */
-      ctx.beginPath();
-      ctx.moveTo(0, height);
-      ctx.lineTo(p1.x + TAIL_OFFSET_X, p1.y + TAIL_OFFSET_Y);
-      ctx.lineTo(p1.x + TAIL_OFFSET_X, height);
-      ctx.closePath();
-      ctx.fillStyle = "rgba(255,0,0,0.35)";
-      ctx.fill();
+      const progress = Math.min(elapsed / takeoffDuration, 1);
 
-      /* 📈 CURVE */
-      ctx.beginPath();
-      ctx.moveTo(0, height);
-      ctx.lineTo(p1.x + TAIL_OFFSET_X, p1.y + TAIL_OFFSET_Y);
-      ctx.strokeStyle = "#ff2e2e";
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      drawAviatorCurve(
+        ctx,
+        p1.x + TAIL_OFFSET_X,
+        p1.y + TAIL_OFFSET_Y,
+        progress
+      );
+
 
       /* ✈️ PLANE */
       ctx.save();
@@ -686,14 +713,15 @@ const Aviator = () => {
   }
 
 
-  console.log("state -- ", gameState);
+  console.log("gameStateRef.current -- ", gameStateRef.current);
+  console.log("gamestate -- ", gameState);
   return (
-    <main className="min-h-screen bg-gray-100 p-2 sm:p-4">
-      <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-center sm:text-left">
+    <main className="min-h-screen sm:h-screen bg-gray-100 p-2 sm:p-4">
+      <h1 className="text-xl sm:text-2xl font-bold mb-2 text-center sm:text-left">
         Aviator
       </h1>
 
-      <div className="border border-black rounded-lg bg-white overflow-hidden">
+      <div className="border border-black rounded-lg bg-white sm:h-[calc(100vh-64px)]">
 
         {/* Header */}
         <div className="border-b p-3 font-semibold text-center sm:text-left">
@@ -701,13 +729,13 @@ const Aviator = () => {
         </div>
 
         {/* Content */}
-        <div className="flex flex-col sm:flex-row h-[600px] sm:h-[500px]">
+        <div className="flex flex-col sm:flex-row sm:h-[calc(100vh-120px)] min-h-0">
 
           {/* Game Area */}
-          <div className="w-full sm:w-[70%] flex flex-col order-1">
+          <div className="w-full sm:w-[70%] flex flex-col min-h-0">
 
             {/* Canvas Area */}
-            <div className="flex-1 bg-black">
+            <div className="bg-black flex-[8] min-h-0">
               <canvas
                 ref={canvasRef}
                 className="w-full h-full block"
@@ -715,18 +743,66 @@ const Aviator = () => {
             </div>
 
             {/* Controls */}
-            <div className="border-t p-3 sm:p-4 flex justify-center">
-              <button
-                className="w-full sm:w-auto bg-green-600 text-white px-6 py-3 sm:py-2 rounded-lg font-bold
-                       hover:bg-green-700 transition"
-              >
-                BID
-              </button>
+            <div className="border-t bg-[#0f1115] p-3 sm:p-4 flex-2 flex items-center justify-center">
+              <div className="w-full max-w-md">
+
+                {/* BET PANEL */}
+                <div className="bg-[#1a1d23] rounded-xl p-4 text-white shadow-lg">
+
+                  {/* Bet / Auto Tabs */}
+                  <div className="flex bg-black/40 rounded-full p-1 mb-4">
+                    <button className="flex-1 py-2 rounded-full bg-[#2a2f3a] font-semibold">
+                      Bet
+                    </button>
+                    <button className="flex-1 py-2 rounded-full text-gray-400">
+                      Auto
+                    </button>
+                  </div>
+
+                  {/* CONTENT */}
+                  <div className="flex flex-col sm:flex-row gap-4">
+
+                    {/* LEFT */}
+                    <div className="flex-1">
+                      {/* Amount Selector */}
+                      <div className="flex items-center justify-between bg-black/40 rounded-lg px-3 py-2 mb-3">
+                        <button className="w-8 h-8 rounded-full bg-[#2a2f3a] text-lg font-bold">
+                          −
+                        </button>
+
+                        <span className="font-semibold text-lg">10.00</span>
+
+                        <button className="w-8 h-8 rounded-full bg-[#2a2f3a] text-lg font-bold">
+                          +
+                        </button>
+                      </div>
+
+                      {/* Preset Chips */}
+                      <div className="grid grid-cols-4 gap-2 text-sm">
+                        <button className="bg-black/40 rounded py-1">100</button>
+                        <button className="bg-black/40 rounded py-1">200</button>
+                        <button className="bg-black/40 rounded py-1">500</button>
+                        <button className="bg-black/40 rounded py-1">1,000</button>
+                      </div>
+                    </div>
+
+                    {/* RIGHT – BET BUTTON */}
+                    <button className="flex-1 bg-[#39d402] hover:bg-[#2fb400] transition rounded-xl py-4 text-black font-extrabold text-lg flex flex-col justify-center">
+                      Bet
+                      <span className="text-sm font-semibold">10.00 INR</span>
+                    </button>
+
+                  </div>
+
+                </div>
+              </div>
             </div>
+
+
           </div>
 
           {/* Sidebar */}
-          <div className="w-full sm:w-[30%] border-t sm:border-t-0 sm:border-l p-3 order-2">
+          <div className="w-full sm:w-[30%] border-t sm:border-t-0 sm:border-l p-3 overflow-auto">
             <h2 className="font-semibold mb-2 text-center sm:text-left">
               Results
             </h2>
@@ -741,6 +817,7 @@ const Aviator = () => {
         </div>
       </div>
     </main>
+
 
 
   );
