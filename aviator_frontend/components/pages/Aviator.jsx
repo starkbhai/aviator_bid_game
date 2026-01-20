@@ -2,6 +2,7 @@
 
 import { Socket_Url } from '@/constant/baseUrl';
 import { memo, useEffect, useRef, useState } from 'react';
+import { toast } from "react-toastify";
 
 
 const GAME_STATE = {
@@ -23,6 +24,8 @@ const Aviator = () => {
   const [currentBets, setCurrentBets] = useState(null);
   const [nextBets, setNextBets] = useState(null);
   const nextBetsRef = useRef(null);
+  const [multiplierAmount , setMultiplierAmount]=useState(10);
+  const [amount , setAmount]=useState(10.00);
 
 
   // * Canvas 
@@ -38,10 +41,30 @@ const Aviator = () => {
   const userBalance = {
     data: {
       amount: {
-        numberDecimal: 50000
+        $numberDecimal: 50000
       }
     }
   };
+
+  function generateUserId() {
+    return "u_" + crypto.randomUUID();
+  }
+
+  function getUserId() {
+    let userId = sessionStorage.getItem("aviator_user_id");
+
+    if (!userId) {
+      userId = generateUserId();
+      sessionStorage.setItem("aviator_user_id", userId);
+    };
+
+    return userId;
+  }
+  
+  useEffect(()=>{
+    getUserId();
+  },[]);
+
 
 
   useEffect(() => {
@@ -105,6 +128,7 @@ const Aviator = () => {
           }
           if (data.event === "aviator_tick") {
             setMultiplier(data.multiplier);
+            setMultiplierAmount(amount*data.multiplier);
           }
           if (data.event === "aviator_timer") {
             setWaitTimer(data.timer);
@@ -116,7 +140,7 @@ const Aviator = () => {
           }
           // For Toast message
           if (data.event === "toast") {
-            if (data.userId === sessionStorage.getItem("userId")) {
+            if (data.userId === sessionStorage.getItem("aviator_user_id")) {
               toast.success(data.msg);
             }
           }
@@ -124,7 +148,7 @@ const Aviator = () => {
 
           if (data.event === "winner") {
             const filter = data.data.filter(
-              (list) => list.id == sessionStorage.getItem("userId")
+              (list) => list.id == sessionStorage.getItem("aviator_user_id")
             );
             if (filter.length > 0) {
               playSound(winSound);
@@ -139,7 +163,7 @@ const Aviator = () => {
           }
           if (data.event === "loss") {
             const filter = data.data.filter(
-              (list) => list.id == sessionStorage.getItem("userId")
+              (list) => list.id == sessionStorage.getItem("aviator_user_id")
             );
             if (filter.length > 0) {
               playSound(loseSound);
@@ -629,6 +653,17 @@ const Aviator = () => {
     }
   }
 
+  /* ================= GENERATE CLIENT SEED ================= */
+  function generateClientSeed(length = 16) {
+    const array = new Uint8Array(length);
+    window.crypto.getRandomValues(array);
+
+    return Array.from(array, b =>
+      b.toString(16).padStart(2, "0")
+    ).join("");
+  }
+
+
   const handleBid = (amount) => {
     if (gameState === GAME_STATE.WAITING && (!currentBets && !nextBets)) {
       console.log("Bid Placed");
@@ -639,9 +674,10 @@ const Aviator = () => {
           amount: amount,
           orderId: aviator_orderId,
           gameType: "aviator",
-          userId: sessionStorage.getItem("userId"),
+          userId: sessionStorage.getItem("aviator_user_id"),
           gameState: gameState,
-          imaginaryAmount: amount
+          imaginaryAmount: amount,
+          clientSeed: generateClientSeed(),
         };
         setCurrentBets(data);
         sendWSMessage(data);
@@ -658,8 +694,9 @@ const Aviator = () => {
         multiplier: multiplier,
         orderId: aviator_orderId,
         gameType: "aviator",
-        userId: sessionStorage.getItem("userId"),
+        userId: sessionStorage.getItem("aviator_user_id"),
         gameState: gameState,
+        clientSeed: generateClientSeed(),
       };
       sendWSMessage(data);
       currentBets && setCurrentBets(null);
@@ -672,9 +709,10 @@ const Aviator = () => {
           amount: amount,
           orderId: "",
           gameType: "aviator",
-          userId: sessionStorage.getItem("userId"),
+          userId: sessionStorage.getItem("aviator_user_id"),
           gameState: gameState,
-          imaginaryAmount: amount
+          imaginaryAmount: amount,
+          clientSeed: generateClientSeed(),
         };
         setNextBets(data);
         nextBetsRef.current = data
@@ -690,9 +728,10 @@ const Aviator = () => {
         amount: amount,
         orderId: aviator_orderId,
         gameType: "aviator",
-        userId: sessionStorage.getItem("userId"),
+        userId: sessionStorage.getItem("aviator_user_id"),
         gameState: gameState,
-        imaginaryAmount: amount
+        imaginaryAmount: amount,
+        clientSeed: generateClientSeed(),
       };
       sendWSMessage(data);
       return;
@@ -702,9 +741,10 @@ const Aviator = () => {
         amount: amount,
         orderId: aviator_orderId,
         gameType: "aviator",
-        userId: sessionStorage.getItem("userId"),
+        userId: sessionStorage.getItem("aviator_user_id"),
         gameState: gameState,
-        imaginaryAmount: amount
+        imaginaryAmount: amount,
+        clientSeed: generateClientSeed(),
       };
       sendWSMessage(data);
       return;
@@ -713,8 +753,8 @@ const Aviator = () => {
   }
 
 
-  console.log("gameStateRef.current -- ", gameStateRef.current);
-  console.log("gamestate -- ", gameState);
+  // console.log("gameStateRef.current -- ", gameStateRef.current);
+  // console.log("gamestate -- ", gameState);
   return (
     <main className="min-h-screen sm:h-screen bg-gray-100 p-2 sm:p-4">
       <h1 className="text-xl sm:text-2xl font-bold mb-2 text-center sm:text-left">
@@ -735,7 +775,7 @@ const Aviator = () => {
           <div className="w-full sm:w-[70%] flex flex-col min-h-0">
 
             {/* Canvas Area */}
-            <div className="bg-black flex-[8] min-h-0">
+            <div className="bg-black flex-8 min-h-0">
               <canvas
                 ref={canvasRef}
                 className="w-full h-full block"
@@ -787,9 +827,11 @@ const Aviator = () => {
                     </div>
 
                     {/* RIGHT – BET BUTTON */}
-                    <button className="flex-1 bg-[#39d402] hover:bg-[#2fb400] transition rounded-xl py-4 text-black font-extrabold text-lg flex flex-col justify-center">
-                      Bet
-                      <span className="text-sm font-semibold">10.00 INR</span>
+                    <button onClick={() => handleBid(10)} className={`cursor-pointer flex-1 ${(gameState === GAME_STATE.RUNNING && currentBets) ? "bg-[#FFA500]" : ((nextBets || currentBets) ? "bg-[#FF0000]" : "bg-[#39d402] hover:bg-[#2fb400]")}  transition rounded-xl py-4 text-black font-extrabold text-lg flex flex-col justify-center`}>
+                      {(currentBets || nextBets) ? <span className="text-sm font-semibold">CANCEL</span> : "Bet"}
+
+                      {(nextBets) && <span className="text-sm font-semibold">Waiting for next round</span>}
+                      <span className="text-sm font-semibold">{(currentBets && gameState === GAME_STATE.RUNNING) ? (multiplierAmount.toFixed(2)) : "10.00"}INR</span>
                     </button>
 
                   </div>
