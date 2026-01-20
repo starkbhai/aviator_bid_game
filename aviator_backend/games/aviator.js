@@ -1,10 +1,17 @@
 
 
- const GAME_STATE = {
+const GAME_STATE = {
   WAITING: "WAITING",
   RUNNING: "RUNNING",
   CRASHED: "CRASHED",
 };
+
+const FALLBACK_CLIENT_SEEDS = [
+  "fallback_seed_1_9f3a2c",
+  "fallback_seed_2_4bd8e1",
+  "fallback_seed_3_71caa9",
+];
+
 
 let crashTimeout = null;
 let multiplier = 1.0;
@@ -22,8 +29,11 @@ function sha256(input) {
 const serverSeed = crypto.randomBytes(32).toString("hex");
 
 // Correct Aviator crash formula
-function getCrashMultiplier(serverSeed, nonce, houseEdge = 0.03) {
-  const hash = sha256(serverSeed + nonce);
+function getCrashMultiplier(serverSeed, clientSeeds, nonce, houseEdge = 0.03) {
+  // clientSeeds MUST be an array of exactly 3 seeds
+  const combinedClientSeed = clientSeeds.join("|");
+  const hashInput = `${serverSeed}:${combinedClientSeed}:${nonce}`;
+  const hash = sha256(hashInput);
   const h = parseInt(hash.substring(0, 8), 16);
   const p = h / 2 ** 32;
 
@@ -134,11 +144,13 @@ async function handleCashout(msg) {
 }
 
 async function rotateGameBets() {
+  
   const exists = await redis.exists(REDIS_KEYS.NEXT_GAME_BETS_HASH);
   // Always clear current
   await redis.del(REDIS_KEYS.CURRENT_GAME_BETS_HASH);
 
   if (exists) {
+    console.log("rotateGameBets : ");
     await redis.rename(
       REDIS_KEYS.NEXT_GAME_BETS_HASH,
       REDIS_KEYS.CURRENT_GAME_BETS_HASH
@@ -150,9 +162,36 @@ async function rotateGameBets() {
   }
 }
 
+async function getClientSeeds() {
+  const bets = await redis.hgetall(REDIS_KEYS.CURRENT_GAME_BETS_HASH);
+  const clientSeeds = [];
+
+  // triverse users in order
+  for (const userId of Object.keys(bets)) {
+    try {
+      const betData = JSON.parse(bets[userId]);
+      if (betData.clientSeed) {
+        clientSeeds.push(betData.clientSeed);
+      };
+
+      if (clientSeeds.length === 3) break;
+    } catch (error) {
+      console.error("Invalid bet data for user:", userId);
+    };
+  };
+  
+  let fallbackIndex = 0;
+  while (clientSeeds.length < 3) {
+    clientSeeds.push(FALLBACK_CLIENT_SEEDS[fallbackIndex]);
+    fallbackIndex++;
+  };
+
+  return clientSeeds;
+}
 
 
-module.exports={
+
+module.exports = {
   GAME_STATE,
   addUserBet,
   removeUserBet,
@@ -160,5 +199,6 @@ module.exports={
   handleCashout,
   rotateGameBets,
   generate6Digit,
-  getCrashMultiplier
+  getCrashMultiplier,
+  getClientSeeds
 }

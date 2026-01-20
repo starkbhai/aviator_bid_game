@@ -1,8 +1,21 @@
 const redis = require("../config/redis");
 const { REDIS_KEYS } = require("../constants/redisKeys");
 
-const { GAME_STATE, handleCashout, generate6Digit, getCrashMultiplier, rotateGameBets } = require("../games/aviator");
+const { GAME_STATE, handleCashout, generate6Digit, getCrashMultiplier, rotateGameBets, getClientSeeds, addUserBet, removeUserBet } = require("../games/aviator");
 const crypto = require("crypto");
+
+async function startGameRound(serverSeed, order_id) {
+  const clientSeeds = await getClientSeeds();
+  console.log("clientSeed-server:", clientSeeds);
+
+  const crashMultiplier = getCrashMultiplier(
+    serverSeed,
+    clientSeeds,
+    order_id
+  );
+  startFlying(crashMultiplier);
+}
+
 
 module.exports = function (wsServer) {
   let gameState = GAME_STATE.WAITING;
@@ -53,8 +66,8 @@ module.exports = function (wsServer) {
         if (msg.gameState === GAME_STATE.WAITING) {
           let isbetsAdd = addUserBet(
             msg,
-            CURRENT_GAME_BETS_HASH_KEY,
-            CURRENT_GAME_TOTAL_BETS_KEY
+            REDIS_KEYS.CURRENT_GAME_BETS_HASH,
+            REDIS_KEYS.CURRENT_GAME_TOTAL_BETS
           );
           if (isbetsAdd) {
             console.log("Bet added to current game");
@@ -64,8 +77,8 @@ module.exports = function (wsServer) {
         } else {
           let isbetsAdd = addUserBet(
             msg,
-            NEXT_GAME_BETS_HASH_KEY,
-            NEXT_GAME_TOTAL_BETS_KEY
+            REDIS_KEYS.NEXT_GAME_BETS_HASH,
+            REDIS_KEYS.NEXT_GAME_TOTAL_BETS
           );
           if (isbetsAdd) {
             console.log("Bet added to next game");
@@ -79,8 +92,8 @@ module.exports = function (wsServer) {
         if (msg.gameState === GAME_STATE.WAITING) {
           let isbetremove = removeUserBet(
             msg,
-            CURRENT_GAME_BETS_HASH_KEY,
-            CURRENT_GAME_TOTAL_BETS_KEY
+            REDIS_KEYS.CURRENT_GAME_BETS_HASH,
+            REDIS_KEYS.CURRENT_GAME_TOTAL_BETS
           );
           isbetremove
             ? console.log("Successfully Bet Remove Current map")
@@ -105,8 +118,8 @@ module.exports = function (wsServer) {
         } else {
           let isbetremoveNextMap = removeUserBet(
             msg,
-            NEXT_GAME_BETS_HASH_KEY,
-            NEXT_GAME_TOTAL_BETS_KEY
+            REDIS_KEYS.NEXT_GAME_BETS_HASH,
+            REDIS_KEYS.NEXT_GAME_TOTAL_BETS
           );
           isbetremoveNextMap
             ? console.log("Successfully Bet Remove NEXTmap")
@@ -170,12 +183,10 @@ module.exports = function (wsServer) {
     waitTimer = 20;
     let order_id = generate6Digit();
     const serverSeed = crypto.randomBytes(32).toString("hex");
-    const crashMultiplier = getCrashMultiplier(serverSeed, order_id);
-
     // ✅ store order_id
     await redis.set(REDIS_KEYS.GAME_ORDER_ID, order_id);
 
-    rotateGameBets();
+    await rotateGameBets();
 
     broadcast({
       event: "aviator_orderId",
@@ -192,7 +203,18 @@ module.exports = function (wsServer) {
 
       if (waitTimer <= 0) {
         clearInterval(waitInterval);
-        startFlying(crashMultiplier);
+        (async () => {
+          const clientSeeds = await getClientSeeds();
+          console.log("clientSeed-server:", clientSeeds);
+
+          const crashMultiplier = getCrashMultiplier(
+            serverSeed,
+            clientSeeds,
+            order_id
+          );
+          console.log("crashMultiplier :: " , crashMultiplier);
+          startFlying(crashMultiplier);
+        })().catch(console.error);
       }
     }, 1000);
   }
@@ -260,7 +282,7 @@ module.exports = function (wsServer) {
     // ⏳ wait 5 seconds then restart
     setTimeout(() => {
       startWaiting();
-    }, 5000);
+    }, 2000);
   }
 
   /* ================= CRASH ALGORITHM ================= */
